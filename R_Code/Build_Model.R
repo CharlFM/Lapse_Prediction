@@ -1,5 +1,5 @@
 
-ntrees <- 1000
+ntrees <- 100
 
 watchlist <- list(val = dval, train = dtrain)
 
