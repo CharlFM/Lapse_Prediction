@@ -59,11 +59,19 @@ rm(Provinces, City_Data)
 fileXLSDate <- file.mtime(paste(Path, "/Data/AssetLife Data/", lap_File_List[lapfile], sep = ""))
 
 All_lap_Data$COMMENCEMENTDATEOFPOLICY <- DateConv(All_lap_Data$COMMENCEMENTDATEOFPOLICY)
+All_lap_Data$COMMENCEMENTDATEOFPOLICY <- firstDayMonth(All_lap_Data$COMMENCEMENTDATEOFPOLICY)
 All_lap_Data$STATUSEFFECTIVEENDDATE   <- DateConv(All_lap_Data$STATUSEFFECTIVEENDDATE)
 
 All_lap_Data$STATUSEFFECTIVEENDDATE <- as.Date(ifelse(All_lap_Data$STATUSEFFECTIVEENDDATE < All_lap_Data$COMMENCEMENTDATEOFPOLICY, 
                                                All_lap_Data$COMMENCEMENTDATEOFPOLICY, 
                                                All_lap_Data$STATUSEFFECTIVEENDDATE))
+
+# If there is an end date and the number of collected premiums equals 0, then force the end date to equal start date
+All_lap_Data$STATUSEFFECTIVEENDDATE[!is.na(All_lap_Data$STATUSEFFECTIVEENDDATE) & 
+                                      All_lap_Data$TOTALAMOUNTPAIDSINCEINCEPTIONTOCURRENTMONTH == 0] <- 
+  All_lap_Data$COMMENCEMENTDATEOFPOLICY[!is.na(All_lap_Data$STATUSEFFECTIVEENDDATE) & 
+                                        All_lap_Data$TOTALAMOUNTPAIDSINCEINCEPTIONTOCURRENTMONTH == 0]
+  
 
 All_lap_Data$DURATION                               <-  as.numeric(((All_lap_Data$STATUSEFFECTIVEENDDATE - 
                                                                        All_lap_Data$COMMENCEMENTDATEOFPOLICY) / 365.25) * 12)
@@ -79,31 +87,6 @@ rm(lap_File_List, lapfile)
 # If there is end date = Lapse, else Active ( or 1, 0)
 All_lap_Data$STATUS[!is.na(All_lap_Data$STATUSEFFECTIVEENDDATE)] <- "LAP"    
 All_lap_Data$STATUS[is.na(All_lap_Data$STATUSEFFECTIVEENDDATE)]  <- "ACT"
-
-#####################################################################################################
-# Calculate Increase #
-######################
-
-All_lap_Data$INCREASE        <-  1
-All_lap_Data$CURRENTPREMIUM  <-  All_lap_Data$YEAR1QUOTEDTOTALPREMIUM
-All_lap_Data$LASTPREMIUM     <-  All_lap_Data$YEAR1QUOTEDTOTALPREMIUM
-year_len                     <-  ceiling(max(All_lap_Data$DURATION, na.rm = TRUE) / 12)
-
-for (i in 2:year_len){
-  
-  dur1 <- All_lap_Data[ceiling(All_lap_Data$DURATION / 12) == i, paste0("YEAR", i, "QUOTEDTOTALPREMIUM")]
-  dur2 <- All_lap_Data[ceiling(All_lap_Data$DURATION / 12) == i, paste0("YEAR", i - 1, "QUOTEDTOTALPREMIUM")]
-  
-  All_lap_Data$CURRENTPREMIUM[ceiling(All_lap_Data$DURATION / 12) == i]  <- dur1
-  All_lap_Data$LASTPREMIUM[   ceiling(All_lap_Data$DURATION / 12) == i]  <- dur2
-  
-}
-
-All_lap_Data$INCREASE                               <-  as.numeric(All_lap_Data$CURRENTPREMIUM) / as.numeric(All_lap_Data$LASTPREMIUM)
-All_lap_Data$INCREASE[All_lap_Data$INCREASE == 1]   <-  NA
-All_lap_Data$INCREASE[All_lap_Data$STATUS == "NTU"] <-  NA
-
-rm(dur1, dur2, i, year_len)
 
 #####################################################################################################
 # Weight Cleaning #
@@ -169,14 +152,6 @@ All_lap_Data$PPB[All_lap_Data$PPB == ""]  <- 0
 # Find Payment Day
 All_lap_Data$PREMIUMPAYERDEBITORDERDAY <- as.numeric(gsub("([0-9]+).*$", "\\1", All_lap_Data$PREMIUMPAYERDEBITORDERDAY))
 
-# choose the columns you want to keep
-source(paste(Path, "/R Code/Colnames.R", sep = ""))
-
-# Remove the unwanted data
-All_lap_Data <- subset(All_lap_Data, select = Names)
-
-rm(Names)
-
 # We need the number of beneficiaries and the relationship to the policyholder.
 # Cleaning all relationship columns
 temp     <-  select(All_lap_Data, contains("RELATIONSHIPOFBENEFICIARY"))
@@ -224,7 +199,6 @@ All_lap_Data$PHONESUBAREA  <-  substr(All_lap_Data$PHONEW, 4, 6)
 All_lap_Data              <- subset(All_lap_Data, select = -PHONEW)
 
 # Get Race Info
-
 Race_Data$RACE     <-  gsub(" ","", gsub("[^[:alpha:] ]", "", toupper(Race_Data$RACE)))
 Race_Data$SURNAME  <-  gsub(" ","", gsub("[^[:alpha:] ]", "", toupper(Race_Data$SURNAME)))
 Race_Data$CULTURE  <-  gsub(" ","", gsub("[^[:alpha:] ]", "", toupper(Race_Data$CULTURE)))
