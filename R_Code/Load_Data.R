@@ -17,7 +17,7 @@ for(lapfile in 1:num_lap_file){
     fileXLSDate <- file.mtime(paste(Path, "/Data/AssetLife Data/", file_name, sep = ""))
     
     if (fileXLSDate > fileCSVDate){
-      excelToCsv(paste(Path, "/Data/AssetLife Data/CSV/", file_name, sep = ""))
+      excelToCsv(paste(Path, "/Data/AssetLife Data/", file_name, sep = ""))
     }
   } else {
     excelToCsv(paste(Path, "/Data/AssetLife Data/",   file_name, sep = ""))
